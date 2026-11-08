@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#172554">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="麻雀成績">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>麻雀成績管理</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f6fb;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);background:#f4f6fb}
+header{background:#172554;color:white;padding:18px 16px 14px;position:sticky;top:0;z-index:5;box-shadow:0 2px 10px #10204a22}
+header h1{font-size:20px;margin:0 0 4px}header small{color:#dbeafe}
+nav{display:flex;gap:8px;padding:12px;position:sticky;top:65px;background:#f4f6fb;z-index:4}
+nav button{flex:1;border:1px solid #cbd5e1;border-radius:12px;padding:11px 4px;background:white;color:#334155;font-weight:700}
+nav button.active{background:#1d4ed8;color:white;border-color:#1d4ed8}
+main{padding:0 12px 30px;max-width:1000px;margin:auto}.panel{background:white;border:1px solid #e2e8f0;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px #0f172a08}
+h2{font-size:17px;margin:0 0 10px}.muted{color:#64748b;font-size:12px}.row{display:flex;align-items:center;gap:8px}.between{justify-content:space-between}
+button{cursor:pointer;font:inherit}.primary,.secondary,.danger{border:0;border-radius:10px;padding:10px 13px;font-weight:700}
+.primary{background:#1d4ed8;color:white}.secondary{background:#e2e8f0;color:#1e293b}.danger{background:#fee2e2;color:#991b1b}
+input{font:inherit;border:1px solid #cbd5e1;border-radius:9px;padding:9px;min-width:0;width:100%;background:white}
+.table-wrap{overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:650px;font-size:13px}th,td{padding:7px 5px;text-align:center;border-bottom:1px solid #e2e8f0}
+th{background:#f1f5f9;position:sticky;top:0}td:first-child,th:first-child{position:sticky;left:0;background:#f8fafc;z-index:1}
+.player-head{min-width:82px}.join{display:block;margin:0 auto 5px;width:17px;height:17px}
+.score-cell{width:100%;min-height:36px;padding:6px 2px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;font-size:12px}
+.score-cell.selected{outline:2px solid #2563eb}.score-cell:disabled{background:#f1f5f9;color:#94a3b8}
+.ok{color:#15803d}.bad{color:#b91c1c}.warn{color:#a16207}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px}
+.stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px}.stat b{display:block;font-size:18px;margin-top:4px}
+.player-line{display:grid;grid-template-columns:minmax(80px,1fr) 90px 90px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #e2e8f0}
+.player-line:last-child{border:0}.chip-button{background:white;border:1px solid #cbd5e1;border-radius:9px;padding:9px;text-align:right;width:100%}
+.rank{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #e2e8f0}
+.rank:last-child{border:0}.rank strong{font-size:18px}.negative{color:#b91c1c}.positive{color:#15803d}
+.modal{position:fixed;inset:0;background:#0f172a88;z-index:20;display:none;align-items:flex-end;justify-content:center;padding:12px}
+.modal.show{display:flex}.keypad{background:white;width:min(100%,440px);border-radius:20px;padding:16px;box-shadow:0 10px 40px #0004}
+.display{background:#f1f5f9;border-radius:12px;padding:14px;text-align:right;font-size:30px;font-weight:700;min-height:62px;margin:10px 0}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.keys button{border:1px solid #cbd5e1;background:white;border-radius:11px;padding:14px;font-size:20px;font-weight:700}
+.keys .sign{background:#dcfce7;border-color:#86efac}.keys .del{background:#f1f5f9}.key-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.hidden{display:none!important}.field{margin:10px 0}.field label{display:block;font-size:13px;color:#475569;margin-bottom:5px}
+.notice{padding:10px;border-radius:10px;background:#eff6ff;color:#1e40af;font-size:12px;line-height:1.6}
+@media(min-width:700px){nav{top:65px}main{padding-top:4px}.modal{align-items:center}}
+</style>
+</head>
+<body>
+<header><h1>麻雀 成績管理</h1><small id="saveStatus">自動保存対応</small></header>
+<nav>
+<button class="active" data-tab="input">試合入力</button>
+<button data-tab="results">成績・チップ</button>
+<button data-tab="settings">設定・バックアップ</button>
+</nav>
+<main>
+<section id="input" class="tab">
+ <div class="panel">
+  <div class="row between"><h2>試合ごとの素点</h2><button class="secondary" id="addMatches">＋10試合追加</button></div>
+  <p class="muted">参加する人にチェックを入れて、点数欄を押すと専用テンキーが開きます。参加者全員の素点合計が0点になると正常です。</p>
+  <div class="table-wrap"><table id="matchTable"></table></div>
+ </div>
+</section>
+<section id="results" class="tab hidden">
+ <div class="panel"><h2>プレイヤー別成績</h2><div id="stats" class="cards"></div></div>
+ <div class="panel"><h2>最終チップ枚数</h2><p class="muted">最後に手元に残ったチップ枚数を入力してください。マイナス枚数にも対応しています。</p><div id="chips"></div></div>
+ <div class="panel"><h2>最終収支ランキング</h2><p class="muted">素点累計 × 素点レート ＋ チップ枚数 × チップ単価</p><div id="ranking"></div></div>
+</section>
+<section id="settings" class="tab hidden">
+ <div class="panel"><h2>プレイヤー設定</h2><p class="muted">「名前変更」は同じ人の表記変更、「別人に交代」は新しい人への入れ替えです。交代前の試合記録は元の名前で残ります。</p><div id="players"></div></div>
+ <div class="panel"><h2>換算レート</h2>
+  <div class="field"><label>素点レート（円／点）</label><input id="pointRate" type="number" step="0.01" min="0"></div>
+  <div class="field"><label>チップ単価（円／枚）</label><input id="chipRate" type="number" step="1" min="0"></div>
+  <p class="muted">例：1000点＝100円なら、素点レートは0.1円／点です。</p>
+ </div>
+ <div class="panel"><h2>データのバックアップ</h2>
+  <p class="muted">データはこの端末・ブラウザ内に自動保存されます。機種変更やブラウザのデータ消去に備え、定期的にバックアップしてください。</p>
+  <div class="row" style="flex-wrap:wrap"><button class="primary" id="backup">バックアップを書き出す</button><button class="secondary" id="csv">CSVを書き出す</button></div>
+  <div class="field"><label>バックアップから復元（JSONファイル）</label><input id="restoreFile" type="file" accept=".json,application/json"></div>
+  <div class="notice">注意：復元すると現在のデータはバックアップの内容に置き換わります。復元前に現在のデータもバックアップすることをおすすめします。</div>
+ </div>
+ <div class="panel"><h2>データ管理</h2><button class="danger" id="reset">すべてのデータを初期化</button></div>
+</section>
+</main>
+<div class="modal" id="keyModal">
+ <div class="keypad">
+  <div class="row between"><b id="keyTitle">点数入力</b><button class="secondary" id="closeKey">閉じる</button></div>
+  <div class="display" id="keyDisplay">0</div>
+  <div class="keys">
+   <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+   <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+   <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+   <button class="sign" data-key="sign">±</button><button data-key="0">0</button><button class="del" data-key="delete">削除</button>
+  </div>
+  <div class="key-actions"><button class="secondary" id="clearKey">クリア</button><button class="primary" id="saveKey">入力を確定</button></div>
+ </div>
+</div>
+<script>
+const STORAGE_KEY='mahjong-score-manager-v1';
+const makeId=()=> 'p_'+Math.random().toString(36).slice(2,11);
+const defaultData=()=>({
+ version:1,pointRate:0.1,chipRate:100,
+ players:Array.from({length:6},(_,i)=>({id:makeId(),name:String.fromCharCode(65+i)+'さん'})),
+ matches:Array.from({length:50},(_,i)=>({id:i+1,entries:Array.from({length:6},(_,p)=>({active:p<4,score:'',playerId:null,playerName:null}))})),
+ chips:Array(6).fill('0')
+});
+let data=loadData(), keyTarget=null, keyValue='';
+function loadData(){try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return defaultData();const d=JSON.parse(raw);if(!d||!Array.isArray(d.players)||!Array.isArray(d.matches))return defaultData();return d}catch(e){return defaultData()}}
+function saveData(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));document.getElementById('saveStatus').textContent='✓ 自動保存済み · '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}catch(e){document.getElementById('saveStatus').textContent='保存できません。バックアップを確認してください。';}}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function entryFor(match,p){let e=match.entries[p];if(!e.playerId){e.playerId=data.players[p].id;e.playerName=data.players[p].name}return e}
+function renderMatches(){
+ const table=document.getElementById('matchTable');
+ let html='<thead><tr><th>試合</th>'+data.players.map((p,i)=>`<th class="player-head">${esc(p.name)}</th>`).join('')+'<th>判定</th></tr></thead><tbody>';
+ data.matches.forEach((m,ri)=>{
+  const entries=m.entries.map((e,p)=>entryFor(m,p));
+  const active=entries.filter(e=>e.active), missing=active.some(e=>e.score==='');
+  const sum=active.reduce((s,e)=>s+(e.score===''?0:Number(e.score)),0);
+  let status=active.length<2?'<span class="bad">参加者不足</span>':missing?'<span class="warn">未入力</span>':sum===0?'<span class="ok">OK</span>':`<span class="bad">合計 ${sum.toLocaleString()} 点</span>`;
+  html+=`<tr><td>${ri+1}回</td>`;
+  entries.forEach((e,p)=>{
+   html+=`<td><input class="join" type="checkbox" data-action="join" data-r="${ri}" data-p="${p}" ${e.active?'checked':''}><button class="score-cell" data-action="score" data-r="${ri}" data-p="${p}" ${e.active?'':'disabled'}>${e.active?(e.score===''?'入力':Number(e.score).toLocaleString()):'不参加'}</button></td>`;
+  });
+  html+=`<td>${status}</td></tr>`;
+ });
+ table.innerHTML=html+'</tbody>';
+}
+function getTotals(){return data.players.map((p,i)=>{let sum=0,count=0;data.matches.forEach(m=>{const e=m.entries[i];if(e.active){count++;if(e.score!=='')sum+=Number(e.score)}});return {sum,count,avg:count?sum/count:0}})}
+function getBalance(i){const t=getTotals()[i];return t.sum*Number(data.pointRate||0)+Number(data.chips[i]||0)*Number(data.chipRate||0)}
+function renderResults(){
+ const totals=getTotals();
+ document.getElementById('stats').innerHTML=data.players.map((p,i)=>`<div class="stat"><span>${esc(p.name)}</span><b>${totals[i].sum.toLocaleString()} 点</b><small class="muted">参加 ${totals[i].count}回 · 平均 ${Math.round(totals[i].avg).toLocaleString()}点</small></div>`).join('');
+ document.getElementById('chips').innerHTML=data.players.map((p,i)=>`<div class="player-line"><b>${esc(p.name)}</b><button class="chip-button" data-action="chip" data-p="${i}">${Number(data.chips[i]||0).toLocaleString()} 枚</button><span class="muted">チップ</span></div>`).join('');
+ const order=data.players.map((p,i)=>({name:p.name,balance:getBalance(i),i})).sort((a,b)=>b.balance-a.balance);
+ document.getElementById('ranking').innerHTML=order.map((x,i)=>`<div class="rank"><span>${i+1}位　<b>${esc(x.name)}</b></span><strong class="${x.balance<0?'negative':'positive'}">${Math.round(x.balance).toLocaleString()}円</strong></div>`).join('');
+}
+function renderPlayers(){
+ document.getElementById('players').innerHTML=data.players.map((p,i)=>`<div class="field"><label>プレイヤー${i+1}</label><div class="row"><input id="pname${i}" value="${esc(p.name)}"><button class="secondary" data-action="rename" data-p="${i}">名前変更</button><button class="secondary" data-action="replace" data-p="${i}">別人に交代</button></div></div>`).join('');
+ document.getElementById('pointRate').value=data.pointRate;
+ document.getElementById('chipRate').value=data.chipRate;
+}
+function render(){renderMatches();renderResults();renderPlayers()}
+function openKey(target,title,value){keyTarget=target;keyValue=String(value??'');document.getElementById('keyTitle').textContent=title;updateKey();document.getElementById('keyModal').classList.add('show')}
+function updateKey(){document.getElementById('keyDisplay').textContent=keyValue===''? '0':keyValue}
+function commitKey(){
+ const v=keyValue===''||keyValue==='-'?'0':String(Number(keyValue));
+ if(keyTarget.type==='score'){const e=data.matches[keyTarget.r].entries[keyTarget.p];e.score=v;e.playerId=e.playerId||data.players[keyTarget.p].id;e.playerName=e.playerName||data.players[keyTarget.p].name}
+ else data.chips[keyTarget.p]=v;
+ document.getElementById('keyModal').classList.remove('show');saveData();render();
+}
+document.querySelector('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(!b)return;document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!==b.dataset.tab));});
+document.getElementById('matchTable').addEventListener('click',e=>{const b=e.target.closest('[data-action="score"]');if(!b)return;const r=+b.dataset.r,p=+b.dataset.p,entry=data.matches[r].entries[p];openKey({type:'score',r,p},`${r+1}試合目 · ${entry.playerName||data.players[p].name}`,entry.score)});
+document.getElementById('matchTable').addEventListener('change',e=>{const c=e.target.closest('[data-action="join"]');if(!c)return;const r=+c.dataset.r,p=+c.dataset.p,m=data.matches[r],entry=m.entries[p];entry.active=c.checked;if(c.checked){entry.playerId=data.players[p].id;entry.playerName=data.players[p].name}else entry.score='';saveData();renderMatches();renderResults()});
+document.getElementById('chips').addEventListener('click',e=>{const b=e.target.closest('[data-action="chip"]');if(b){const p=+b.dataset.p;openKey({type:'chip',p},`${data.players[p].name} · チップ枚数`,data.chips[p])}});
+document.getElementById('players').addEventListener('click',e=>{
+ const b=e.target.closest('button[data-action]');if(!b)return;const p=+b.dataset.p,input=document.getElementById('pname'+p),name=input.value.trim()||`プレイヤー${p+1}`;
+ if(b.dataset.action==='rename'){
+  const oldId=data.players[p].id;data.players[p].name=name;
+  data.matches.forEach(m=>{const en=m.entries[p];if(en.playerId===oldId)en.playerName=name});
+ }else{
+  data.players[p]={id:makeId(),name};
+  data.matches.forEach(m=>{
+   const hasAnyRecordedScore=m.entries.some(en=>en.score!=='');
+   const en=m.entries[p];
+   if(!hasAnyRecordedScore){en.playerId=data.players[p].id;en.playerName=name}
+  });
+  data.chips[p]='0';
+ }
+ saveData();render();
+});
+document.getElementById('addMatches').addEventListener('click',()=>{const start=data.matches.length;for(let i=0;i<10;i++)data.matches.push({id:start+i+1,entries:Array.from({length:6},(_,p)=>({active:p<4,score:'',playerId:data.players[p].id,playerName:data.players[p].name}))});saveData();renderMatches()});
+document.querySelector('.keys').addEventListener('click',e=>{const b=e.target.closest('[data-key]');if(!b)return;const k=b.dataset.key;if(k==='sign')keyValue=keyValue.startsWith('-')?keyValue.slice(1):'-'+keyValue;else if(k==='delete')keyValue=keyValue.slice(0,-1);else if(keyValue.replace('-','').length<9)keyValue+=k;updateKey()});
+document.getElementById('clearKey').onclick=()=>{keyValue='';updateKey()};
+document.getElementById('saveKey').onclick=commitKey;
+document.getElementById('closeKey').onclick=()=>document.getElementById('keyModal').classList.remove('show');
+document.getElementById('pointRate').addEventListener('change',e=>{data.pointRate=Math.max(0,Number(e.target.value)||0);saveData();renderResults()});
+document.getElementById('chipRate').addEventListener('change',e=>{data.chipRate=Math.max(0,Number(e.target.value)||0);saveData();renderResults()});
+function download(name,content,type){const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+document.getElementById('backup').onclick=()=>download('麻雀成績バックアップ_'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(data,null,2),'application/json');
+document.getElementById('csv').onclick=()=>{
+ let lines=[['試合',...data.players.map(p=>p.name+' 参加'),...data.players.map(p=>p.name+' 素点'),'合計','判定']];
+ data.matches.forEach((m,i)=>{const es=m.entries,active=es.filter(e=>e.active),sum=active.reduce((s,e)=>s+(e.score===''?0:Number(e.score)),0);lines.push([i+1,...es.map(e=>e.active?'参加':'不参加'),...es.map(e=>e.score),sum,active.length<2?'参加者不足':active.some(e=>e.score==='')?'未入力':sum===0?'OK':'合計不一致'])});
+ lines.push([]);lines.push(['最終チップ枚数',...data.players.map((p,i)=>p.name+': '+data.chips[i])]);lines.push(['素点レート',data.pointRate,'円/点']);lines.push(['チップ単価',data.chipRate,'円/枚']);
+ const csv='\uFEFF'+lines.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+ download('麻雀成績_'+new Date().toISOString().slice(0,10)+'.csv',csv,'text/csv;charset=utf-8');
+};
+document.getElementById('restoreFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.players)||d.players.length!==6||!Array.isArray(d.matches)||!Array.isArray(d.chips)||d.chips.length!==6)throw Error('形式が違います');if(!confirm('現在のデータをバックアップ内容で置き換えます。よろしいですか？'))return;data=d;saveData();render();alert('復元しました');}catch(err){alert('バックアップを読み込めませんでした。正しいJSONファイルを選択してください。')}e.target.value=''});
+document.getElementById('reset').onclick=()=>{if(confirm('全試合・設定・チップの記録を初期化します。先にバックアップしましたか？')&&confirm('本当に初期化しますか？')){data=defaultData();saveData();render()}};
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+render();saveData();
+</script>
+</body></html>
